@@ -3,136 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket チャット</title>
+    <title>掲示板</title>
     <style>
-        /* ページ全体のスタイル */
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f7f7f7;
+            font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            box-sizing: border-box;
-        }
-
-        /* チャットのコンテナ */
-        .chat-container {
-            width: 400px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
             padding: 20px;
+            background-color: #f4f4f4;
         }
 
-        /* チャット表示領域 */
-        #chat {
-            flex-grow: 1;
-            overflow-y: auto;
-            max-height: 300px;
+        h1, h2 {
+            color: #333;
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        form {
             margin-bottom: 20px;
+        }
+
+        input[type="text"], input[type="password"], input[type="email"], textarea {
+            width: 100%;
             padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #fafafa;
-        }
-
-        /* メッセージ */
-        .message {
-            margin-bottom: 10px;
-            padding: 8px;
-            border-radius: 5px;
-            max-width: 80%;
-        }
-
-        /* 自分のメッセージ */
-        .user-message {
-            background-color: #d1f7c4;
-            align-self: flex-end;
-        }
-
-        /* サーバーからのメッセージ */
-        .server-message {
-            background-color: #e1e1e1;
-            align-self: flex-start;
-        }
-
-        /* 入力フィールドと送信ボタン */
-        .input-container {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        #message {
-            width: 80%;
-            padding: 10px;
+            margin: 5px 0;
             border-radius: 4px;
             border: 1px solid #ccc;
-            font-size: 14px;
         }
 
         button {
-            width: 15%;
-            padding: 10px;
-            background-color: #4CAF50;
-            border: none;
+            padding: 10px 20px;
+            background-color: #007bff;
             color: white;
-            font-size: 14px;
+            border: none;
             border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
         }
 
         button:hover {
-            background-color: #45a049;
+            background-color: #0056b3;
+        }
+
+        .admin-page {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
         }
     </style>
 </head>
 <body>
+    <h1>掲示板</h1>
+    
+    {% if 'username' not in session %}
+    <p><a href="{{ url_for('register') }}">アカウント作成</a> | <a href="{{ url_for('login') }}">ログイン</a></p>
+    {% else %}
+    <p>ようこそ、{{ session['username'] }}さん！ <a href="{{ url_for('index') }}">ログアウト</a></p>
+    {% endif %}
 
-<div class="chat-container">
-    <h2>WebSocket チャット</h2>
-    <div id="chat"></div>
-    <div class="input-container">
-        <input type="text" id="message" placeholder="メッセージを入力...">
-        <button onclick="sendMessage()">送信</button>
-    </div>
-</div>
+    {% if request.endpoint == 'index' %}
+        <h2>スレッド作成</h2>
+        <form action="/" method="POST">
+            <label for="title">スレッドタイトル:</label>
+            <input type="text" id="title" name="title" required><br>
 
-<script>
-    // RenderにホストされたサーバーのURLを指定
-    const socket = new WebSocket('wss://chatserver-4akz.onrender.com/');
+            <label for="content">スレッド内容:</label>
+            <textarea id="content" name="content" required></textarea><br>
 
-    // サーバーからメッセージが来た時の処理
-    socket.onmessage = function(event) {
-        const chat = document.getElementById('chat');
-        const serverMessage = document.createElement('div');
-        serverMessage.classList.add('message', 'server-message');
-        serverMessage.textContent = `サーバー: ${event.data}`;
-        chat.appendChild(serverMessage);
-        chat.scrollTop = chat.scrollHeight;  // 新しいメッセージが下に来るようにスクロール
-    };
+            <button type="submit">スレッド作成</button>
+        </form>
 
-    // メッセージ送信
-    function sendMessage() {
-        const message = document.getElementById('message').value;
-        if (message.trim() !== '') {
-            socket.send(message);  // サーバーにメッセージを送信
-            const chat = document.getElementById('chat');
-            const userMessage = document.createElement('div');
-            userMessage.classList.add('message', 'user-message');
-            userMessage.textContent = `あなた: ${message}`;
-            chat.appendChild(userMessage);
-            document.getElementById('message').value = '';  // 入力欄を空にする
-            chat.scrollTop = chat.scrollHeight;
-        }
-    }
-</script>
+        <h2>スレッド一覧</h2>
+        <ul>
+            {% for thread in threads %}
+            <li>
+                <a href="{{ url_for('thread', thread_id=thread.id) }}">{{ thread.title }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 
+    {% if request.endpoint == 'thread' %}
+        <h2>{{ thread.title }}</h2>
+        <p>{{ thread.content }}</p>
+
+        <h3>コメント投稿</h3>
+        <form action="{{ url_for('thread', thread_id=thread.id) }}" method="POST">
+            <textarea name="content" required></textarea><br>
+            <button type="submit">コメントを投稿</button>
+        </form>
+
+        <h3>コメント一覧</h3>
+        <ul>
+            {% for comment in comments %}
+            <li>{{ comment.content }} - {{ comment.user.username }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if request.endpoint == 'users' %}
+        <div class="admin-page">
+            <h2>ユーザー一覧 (管理者専用)</h2>
+            <ul>
+                {% for user in users %}
+                <li>{{ user.username }} - 
+                    {% if user.is_admin %}
+                        管理者
+                    {% else %}
+                        {{ user.email }}
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
 </body>
 </html>
